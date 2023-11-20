@@ -55,7 +55,7 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
   //matrix multiplication
   double start = omp_get_wtime();
 
-#pragma omp for collapse(2) private(i,j,k)
+#pragma omp parallel for collapse(2) private(i,j,k)
   for (i = 0; i < A.cols; i++) {
     for (k = 0; k < B.cols; k++) {
       for (j = 0; j < A.rows; j++) {
@@ -63,6 +63,7 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
       }
     }
   }
+
 
 
   double stop = omp_get_wtime();
