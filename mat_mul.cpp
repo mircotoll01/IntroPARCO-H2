@@ -54,17 +54,24 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
   int i,j,k;
   //matrix multiplication
   double start = omp_get_wtime();
-
 #pragma omp parallel for collapse(2) private(i,j,k)
-  for (i = 0; i < A.cols; i++) {
+  for (i = 0; i < A.cols/2; i++) {
     for (k = 0; k < B.cols; k++) {
       for (j = 0; j < A.rows; j++) {
+#pragma omp atomic update
         C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
       }
     }
   }
-
-
+#pragma omp parallel for collapse(2) private(i,j,k)
+  for (i =A.cols/2; i < A.cols; i++) {
+    for (k = 0; k < B.cols; k++) {
+      for (j = 0; j < A.rows; j++) {
+#pragma omp atomic update
+        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
+      }
+    }
+  }
 
   double stop = omp_get_wtime();
   cout << "Parallel matrix multiplication executed:\t"  << stop - start << " seconds elapsed" << endl;
@@ -78,12 +85,14 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
 
 int main(){
   cout << "Matrix multiplication testing two 2x2 matrices with a 2 in every position. Verify the correct operations by looking the result below:" << endl;
-  Matrix E = Matrix(2,2);
-  E.elements[0][0] = 2;
-  E.elements[0][1] = 2;
-  E.elements[1][0] = 2;
-  E.elements[1][1] = 2;
-  Matrix F = E;
+  Matrix E = Matrix(4,4);
+  Matrix F = Matrix (4,4);
+  for(int i = 0; i < 4; i++){
+    for(int j = 0; j <4; j++){
+      E.elements[i][j] = 2;
+      F.elements[i][j] = 2;
+    }
+  }
 
   cout << E << endl;
   cout << F << endl;
