@@ -52,45 +52,23 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
   if (A.rows != B.cols) {cout<<"invalid arguments"<<endl; return Matrix();}
   Matrix C = Matrix(A.cols, B.rows);
   float sum = 0;
-  int i,j,k,x,y,z;
+  int i,j,k;
   //matrix multiplication
   double start = omp_get_wtime();
 
-#pragma omp parallel
-#pragma omp schedule(dynamic) num_threads(8) private(i,j,k)
-{ 
-  for (i = 0; i < A.cols/2; i++) {
-    for (k = 0; k < B.cols; k++) {
-      for (j = 0; j < A.rows/2; j++) {
-        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
-      }
-    }
-  }
 
-  for (i = A.cols/2; i < A.cols; i++) {
-    for (k = 0; k < B.cols; k++) {
-      for (j = 0; j < A.rows/2; j++) {
-         C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
+#pragma omp parallel for collapse(2) private(i,j,k) reduction(+:sum)
+  for (i = 0; i < A.cols; i++) {
+    for (j = 0; j < A.rows; j++) {
+      for (k = 0; k < B.cols; k++) {
+#pragma omp atomic write
+        sum = 0;
+        sum += A.elements[i][k] * B.elements[k][j];
+#pragma omp atomic write
+        C.elements[i][j] = sum;
       }
     }
   }
-
-  for (i = 0; i < A.cols/2; i++) {
-    for (k = 0; k < B.cols; k++) {
-      for (j = A.rows/2; j < A.rows; j++) {
-        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
-      }
-    }
-  }
-
-  for (i = A.cols/2; i < A.cols; i++) {
-    for (k = 0; k < B.cols; k++) {
-      for (j = A.rows/2; j < A.rows; j++) {
-         C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
-      }
-    }
-  }
-}
   double stop = omp_get_wtime();
   cout << "Parallel matrix multiplication executed:\t"  << stop - start << " seconds elapsed" << endl;
   return C;
@@ -131,5 +109,6 @@ int main(){
     D = matMulPar(A,B);
     cout<<endl;
   }
+
   return 0;
 }
