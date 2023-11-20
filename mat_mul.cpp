@@ -57,24 +57,36 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
   double start = omp_get_wtime();
 
 #pragma omp parallel
+#pragma omp schedule(dynamic) num_threads(8) private(i,j,k)
 { 
-#pragma omp for private(i,j,k) reduction(+:sum) nowait
   for (i = 0; i < A.cols/2; i++) {
     for (k = 0; k < B.cols; k++) {
-      for (j = 0; j < A.rows; j++) {
-        sum = 0;
-        sum += A.elements[i][k] * B.elements[k][j];
-        C.elements[i][j] += sum;
+      for (j = 0; j < A.rows/2; j++) {
+        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
       }
     }
   }
-#pragma omp for private(i,j,k) reduction(+:sum) nowait
+
   for (i = A.cols/2; i < A.cols; i++) {
     for (k = 0; k < B.cols; k++) {
-      for (j = 0; j < A.rows; j++) {
-        sum = 0;
-        sum += A.elements[i][k] * B.elements[k][j];
-        C.elements[i][j] += sum;
+      for (j = 0; j < A.rows/2; j++) {
+         C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
+      }
+    }
+  }
+
+  for (i = 0; i < A.cols/2; i++) {
+    for (k = 0; k < B.cols; k++) {
+      for (j = A.rows/2; j < A.rows; j++) {
+        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
+      }
+    }
+  }
+
+  for (i = A.cols/2; i < A.cols; i++) {
+    for (k = 0; k < B.cols; k++) {
+      for (j = A.rows/2; j < A.rows; j++) {
+         C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
       }
     }
   }
@@ -90,6 +102,22 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
 
 
 int main(){
+  cout << "Matrix multiplication testing two 2x2 matrices with a 2 in every position. Verify the correct operations by looking the result below:" << endl;
+  Matrix E = Matrix(2,2);
+  E.elements[0][0] = 2;
+  E.elements[0][1] = 2;
+  E.elements[1][0] = 2;
+  E.elements[1][1] = 2;
+  Matrix F = E;
+
+  cout << E << endl;
+  cout << F << endl;
+  Matrix G = matMul(E,F);
+  cout << G << endl;
+  G = matMulPar(E,F);
+  cout << G << endl;
+  cout << "test finished" << endl;
+
   Matrix A,B,C,D;
   for(int i = 1; i <= 15; i++){    
     cout << "Testing with matrix size " << pow(2,i) << "x" << pow(2,i) << endl;
