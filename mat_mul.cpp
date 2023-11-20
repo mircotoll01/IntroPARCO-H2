@@ -51,24 +51,20 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
   // check if matrix multiplication is possible, otherwise return an empty matrix with the standard constructor
   if (A.rows != B.cols) {cout<<"invalid arguments"<<endl; return Matrix();}
   Matrix C = Matrix(A.cols, B.rows);
-  float sum = 0;
   int i,j,k;
   //matrix multiplication
   double start = omp_get_wtime();
 
-
-#pragma omp parallel for collapse(2) private(i,j,k) reduction(+:sum)
+#pragma omp for collapse(2) private(i,j,k)
   for (i = 0; i < A.cols; i++) {
-    for (j = 0; j < A.rows; j++) {
-      for (k = 0; k < B.cols; k++) {
-#pragma omp atomic write
-        sum = 0;
-        sum += A.elements[i][k] * B.elements[k][j];
-#pragma omp atomic write
-        C.elements[i][j] = sum;
+    for (k = 0; k < B.cols; k++) {
+      for (j = 0; j < A.rows; j++) {
+        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
       }
     }
   }
+
+
   double stop = omp_get_wtime();
   cout << "Parallel matrix multiplication executed:\t"  << stop - start << " seconds elapsed" << endl;
   return C;
