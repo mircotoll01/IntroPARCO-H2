@@ -56,29 +56,29 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
   //matrix multiplication
   double start = omp_get_wtime();
 
-	#pragma omp parallel
-	#pragma omp sections
-  	{
-      {
-  			for (i = 0; i < A.cols/2; i++) {
-    			for (k = 0; k < B.cols; k++) {
-      			for (j = 0; j < A.rows; j++) {
-        			C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
-      			}
-    			}
-  			}
-      }
-			#pragma omp section
-      {
-  			for (x = A.cols/2; x < A.cols-1; x++) {
-    			for (z = 0; z < B.cols; z++) {
-      			for (y = 0; y < A.rows; y++) {
-        			C.elements[x][z] += A.elements[x][y] * B.elements[y][z];
-      			}
-    			}
-  			}
+#pragma omp parallel
+{ 
+#pragma omp for private(i,j,k) reduction(+:sum) nowait
+  for (i = 0; i < A.cols/2; i++) {
+    for (k = 0; k < B.cols; k++) {
+      for (j = 0; j < A.rows; j++) {
+        sum = 0;
+        sum += A.elements[i][k] * B.elements[k][j];
+        C.elements[i][j] += sum;
       }
     }
+  }
+#pragma omp for private(i,j,k) reduction(+:sum) nowait
+  for (i = A.cols/2; i < A.cols; i++) {
+    for (k = 0; k < B.cols; k++) {
+      for (j = 0; j < A.rows; j++) {
+        sum = 0;
+        sum += A.elements[i][k] * B.elements[k][j];
+        C.elements[i][j] += sum;
+      }
+    }
+  }
+}
   double stop = omp_get_wtime();
   cout << "Parallel matrix multiplication executed:\t"  << stop - start << " seconds elapsed" << endl;
   return C;
