@@ -55,7 +55,7 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
   //matrix multiplication
   double start = omp_get_wtime();
 #pragma omp parallel for collapse(2) private(i,j,k)
-  for (i = 0; i < A.cols/2; i++) {
+  for (i = 0; i < A.cols/4; i++) {
     for (k = 0; k < B.cols; k++) {
       for (j = 0; j < A.rows; j++) {
 #pragma omp atomic update
@@ -64,7 +64,7 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
     }
   }
 #pragma omp parallel for collapse(2) private(i,j,k)
-  for (i =A.cols/2; i < A.cols; i++) {
+  for (i = (A.cols/4); i < A.cols/2; i++) {
     for (k = 0; k < B.cols; k++) {
       for (j = 0; j < A.rows; j++) {
 #pragma omp atomic update
@@ -72,7 +72,24 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
       }
     }
   }
-
+#pragma omp parallel for collapse(2) private(i,j,k)
+  for (i = A.cols/2; i < (A.cols/4)*3; i++) {
+    for (k = 0; k < B.cols; k++) {
+      for (j = 0; j < A.rows; j++) {
+#pragma omp atomic update
+        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
+      }
+    }
+  }
+#pragma omp parallel for collapse(2) private(i,j,k)
+  for (i = (A.cols/4)*3; i < A.cols; i++) {
+    for (k = 0; k < B.cols; k++) {
+      for (j = 0; j < A.rows; j++) {
+#pragma omp atomic update
+        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
+      }
+    }
+  }
   double stop = omp_get_wtime();
   cout << "Parallel matrix multiplication executed:\t"  << stop - start << " seconds elapsed" << endl;
   return C;

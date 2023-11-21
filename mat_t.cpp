@@ -10,7 +10,7 @@ using namespace std;
 ostream& operator<<(ostream& os, const Matrix& A){
   os << endl;
   for(int i = 0; i < A.cols; i++){;
-    for(int j = 0; j < A.rows; j++){ os << A.elements[i][j] << " "; }
+    for(int j = 0; j < A.rows; j++){ os << A.elements[i][j] << "\t"; }
     os << endl;
   }
   return os;
@@ -38,34 +38,42 @@ Matrix matT(Matrix A){
   }
   double stop = omp_get_wtime();
 
-  cout << "Serial matrix transposition executed:        " << stop - start << " seconds elapsed" << endl;
+  cout << "Serial matrix transposition executed:          " << stop - start << " \tseconds elapsed" << endl;
   return B;
 }
 
 Matrix matBlockT(Matrix A, int block_size){
-  Matrix B = Matrix(A.rows, A.cols); 
+  Matrix B = Matrix(A.rows, A.cols);
+  Matrix C = Matrix(A.rows, A.cols);
   double start = omp_get_wtime();
 
-  for(int c = 0; c < A.cols/block_size; c++){
-  	for(int r = 0; r < A.rows/block_size; r++){
-    	for(int i = 0; i < block_size; i++){
+  for(int c = 0; c < A.cols; c += block_size){
+  	for(int r = 0; r < A.rows; r += block_size){
+    	//transposition of the elements of the block
+      for(int i = 0; i < block_size; i++){
+        for(int j = 0; j < block_size; j++){
+          B.elements[c+j][r+i] = A.elements[c+i][r+j];
+        }
+      }
+      //transposition of the block
+      for(int i = 0; i < block_size; i++){
       	for(int j = 0; j < block_size; j++){
-        	B.elements[block_size*r+j][block_size*c+i] = A.elements[block_size*c+i][block_size*r+j];
+        	C.elements[r+i][c+j] = B.elements[c+i][r+j];
       	}
    		}
-  	}
-  }
-  for(int i = 0; i < A.cols/2; i++){
-    for(int j = 0; j < A.rows/2; j++){
-      B.elements[j][i] = A.elements[i][j];
     }
-  } 
+  }
 
 	double stop = omp_get_wtime();
 
-  cout << "Serial matrix block transposition executed:  " << stop - start << " seconds elapsed" << endl; 
-  return B;
+  cout << "Serial matrix block transposition executed:    " << stop - start << " \tseconds elapsed" << endl; 
+  return C;
 }
+
+
+
+//------------------PARALLEL FUNCTIONS---------------------
+
 
 
 Matrix matTpar(Matrix A){
@@ -79,33 +87,42 @@ Matrix matTpar(Matrix A){
   }
   double stop = omp_get_wtime();
 
-  cout << "Serial matrix transposition executed:        " << stop - start << " seconds elapsed" << endl;
+  cout << "Parallel matrix transposition executed:        " << stop - start << " \tseconds elapsed" << endl;
   return B;
 }
 
 Matrix matBlockTpar(Matrix A,int block_size){
-  Matrix B = Matrix(A.rows, A.cols); 
+  Matrix B = Matrix(A.rows, A.cols);
+  Matrix C = Matrix(A.rows, A.cols);
+  int r,c,i,j;
+
   double start = omp_get_wtime();
-#pragma omp parallel for
-  for(int c = 0; c < A.cols/block_size; c++){
-  	for(int r = 0; r < A.rows/block_size; r++){
-    	for(int i = 0; i < block_size; i++){
-      	for(int j = 0; j < block_size; j++){
-        	B.elements[block_size*r+j][block_size*c+i] = A.elements[block_size*c+i][block_size*r+j];
+#pragma omp parallel for collapse(2) private(r,c,i,j)
+  for(c = 0; c < A.cols; c += block_size){
+  	for(r = 0; r < A.rows; r += block_size){
+      //transposition of the elements of the block
+      #pragma omp sections
+      {
+      for(i = 0; i < block_size; i++){
+        for(j = 0; j < block_size; j++){
+          #pragma omp atomic write
+          B.elements[c+j][r+i] = A.elements[c+i][r+j];
+        }
+      }
+      //transposition of the block
+      for(i = 0; i < block_size; i++){
+      	for(j = 0; j < block_size; j++){
+          #pragma omp atomic write
+        	C.elements[r+i][c+j] = B.elements[c+i][r+j];
       	}
    		}
-  	}
-  }
-  for(int i = 0; i < A.cols/2; i++){
-    for(int j = 0; j < A.rows/2; j++){
-      B.elements[j][i] = A.elements[i][j];
+    }
     }
   } 
-
 	double stop = omp_get_wtime();
 
-  cout << "Serial matrix block transposition executed:  " << stop - start << " seconds elapsed" << endl; 
-  return B;
+  cout << "Parallel matrix block transposition executed:  " << stop - start << "\tseconds elapsed" << endl; 
+  return C;
 }
 //---------------------------------------------------------
 //----------------------MAIN LOOP--------------------------
@@ -113,7 +130,31 @@ Matrix matBlockTpar(Matrix A,int block_size){
 
 
 int main(){
-  for(int i = 1; i <= 15; i++){
+  int index_test = 0;
+  cout << "Matrix transposition testing two 4x4 matrices. Verify the correct operations by looking the result below:" << endl;
+  Matrix E = Matrix(4,4);
+  for(int i = 0; i < 4; i++){
+    for(int j = 0; j <4; j++){
+      E.elements[i][j] = index_test++;
+    }
+  }
+
+  Matrix F;
+
+  cout << E << endl;
+  F = matT(E);
+  cout << F << endl;
+  F = matBlockT(E,2);
+  cout << F << endl;
+  F = matTpar(E);
+  cout << F << endl;
+  F = matBlockTpar(E,2);
+  cout << F << endl;
+  cout << "test finished" << endl;
+
+
+
+  for(int i = 1; i <= 12; i++){
     cout << "Testing with matrix size " << pow(2,i) << "x" << pow(2,i) <<endl;
     Matrix A = Matrix(pow(2,i),pow(2,i));
     matPopulate(A);
