@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdlib.h>
 #include <cmath>
 #include <omp.h>
 #include "matrix.h"
@@ -53,42 +54,16 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
   Matrix C = Matrix(A.cols, B.rows);
   //matrix multiplication
   double start = omp_get_wtime();
-#pragma omp parallel for collapse(2)
-  for (int i = 0; i < A.cols/4; i++) {
+#pragma omp parallel for schedule(static, A.cols/4) collapse(2)
+  for (int i = 0; i < A.cols; i++) { 
     for (int k = 0; k < B.cols; k++) {
       for (int j = 0; j < A.rows; j++) {//variables declared inside of loops are implicitly private
-#pragma omp atomic update// since multiple threads can work in the same position at the same time, an atomic directive is necessary
+        #pragma omp atomic update// since multiple threads can work in the same position at the same time, an atomic directive is necessary
         C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
       }
     }
   }
-#pragma omp parallel for collapse(2)
-  for (int i = (A.cols/4); i < A.cols/2; i++) {
-    for (int k = 0; k < B.cols; k++) {
-      for (int j = 0; j < A.rows; j++) {
-#pragma omp atomic update
-        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
-      }
-    }
-  }
-#pragma omp parallel for collapse(2)
-  for (int i = A.cols/2; i < (A.cols/4)*3; i++) {
-    for (int k = 0; k < B.cols; k++) {
-      for (int j = 0; j < A.rows; j++) {
-#pragma omp atomic update
-        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
-      }
-    }
-  }
-#pragma omp parallel for collapse(2)
-  for (int i = (A.cols/4)*3; i < A.cols; i++) {
-    for (int k = 0; k < B.cols; k++) {
-      for (int j = 0; j < A.rows; j++) {
-#pragma omp atomic update
-        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
-      }
-    }
-  }
+
   double stop = omp_get_wtime();
   cout << "Parallel matrix multiplication executed:\t"  << stop - start << " seconds elapsed" << endl;
   return C;
@@ -100,6 +75,7 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
 
 
 int main(){
+
   cout << "Matrix multiplication testing two 2x2 matrices with a 2 in every position. Verify the correct operations by looking the result below:" << endl;
   Matrix E = Matrix(4,4);
   Matrix F = Matrix (4,4);
@@ -118,8 +94,9 @@ int main(){
   cout << G << endl;
   cout << "test finished" << endl;
 
+
   Matrix A,B,C,D;
-  for(int i = 1; i <= 15; i++){    
+  for(int i = 5; i <= 12; i++){    
     cout << "Testing with matrix size " << pow(2,i) << "x" << pow(2,i) << endl;
 
     A = Matrix(pow(2,i),pow(2,i));

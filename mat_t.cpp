@@ -96,18 +96,18 @@ Matrix matBlockTpar(const Matrix& A,int block_size){
   Matrix C = Matrix(A.rows, A.cols);
 
   double start = omp_get_wtime();
-#pragma omp parallel//the first loops will have less iteration the bigger is the block size 
+#pragma omp parallel for schedule(dynamic)//the first loops will have less iteration the bigger is the block size 
   for(int c = 0; c < A.cols; c += block_size){
   	for(int r = 0; r < A.rows; r += block_size){
       //transposition of the elements of the block
-#pragma omp for collapse(2)//the bigger the block size, the more iteration there will be in the inner loops, 
+#pragma omp parallel for schedule(static, A.cols/block_size) num_threads()//the bigger the block size, the more iteration there will be in the inner loops, 
       for(int i = 0; i < block_size; i++){
         for(int j = 0; j < block_size; j++){
           B.elements[c+j][r+i] = A.elements[c+i][r+j];
         }
       }
       //transposition of the block
-#pragma omp for collapse(2) nowait//the first loop could not have a directive with a nowait clause since during the last iterations the threads would start to write the positions of C without finishing to write every possitions of B, resulting in unpredictable outputs
+#pragma omp parallel for schedule(static, A.cols/block_size)//the first loop could not have a directive with a nowait clause since during the last iterations the threads would start to write the positions of C without finishing to write every possitions of B, resulting in unpredictable outputs
       for(int i = 0; i < block_size; i++){
       	for(int j = 0; j < block_size; j++){
         	C.elements[r+i][c+j] = B.elements[c+i][r+j];
@@ -150,7 +150,7 @@ int main(){
 
 
 
-  for(int i = 2; i <= 12; i++){
+  for(int i = 5; i <= 12; i++){
     cout << "Testing with matrix size " << pow(2,i) << "x" << pow(2,i) <<endl;
     Matrix A = Matrix(pow(2,i),pow(2,i));
     matPopulate(A);
