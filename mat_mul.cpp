@@ -62,7 +62,7 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
   Matrix C = Matrix(A.cols, B.rows);
   //matrix multiplication
   double start = omp_get_wtime();
-#pragma omp parallel for schedule(static, A.cols/4) collapse(2)
+#pragma omp parallel for schedule(static, A.cols/omp_get_max_threads()) collapse(2)
   for (int i = 0; i < A.cols; i++) { 
     for (int k = 0; k < B.cols; k++) {
       for (int j = 0; j < A.rows; j++) {//variables declared inside of loops are implicitly private
