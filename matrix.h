@@ -11,10 +11,10 @@ class Matrix{
   Matrix(int c, int r){
     cols = c;
     rows = r;
-    elements = new float*[c];
-    for (int i = 0; i < c; i++){
-			 elements[i] = new float[r];
-       for (int j = 0; j < r; j++){ elements[i][j] = 0;}
+    elements = new float*[r];
+    for (int i = 0; i < r; i++){
+			 elements[i] = new float[c];
+       for (int j = 0; j < c; j++){ elements[i][j] = 0;}
     }
   }
 

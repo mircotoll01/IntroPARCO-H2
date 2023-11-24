@@ -20,9 +20,17 @@ ostream& operator<<(ostream& os, const Matrix& A){
 
 void matPopulate(Matrix A){
   //matrix population with random numbers
-  for(int i = 0; i < A.cols; i++){
-    for(int j = 0; j < A.rows; j++){
+  for(int i = 0; i < A.rows; i++){
+    for(int j = 0; j < A.cols; j++){
       A.elements[i][j] = (float)(rand() % 100)/(float)(rand()%100);
+    }
+  }
+}
+
+void isEqual(const Matrix& A, const Matrix& B){
+  for(int i = 0; i < A.rows; i++){
+    for(int j = 0; j < A.cols; j++){
+      if(A.elements[i][j] != B.elements[i][j]){cout<<"matrices not equal"<<endl; return;}
     }
   }
 }
@@ -31,8 +39,8 @@ Matrix matT(const Matrix& A){
   Matrix B = Matrix(A.rows, A.cols);
 	
   double start = omp_get_wtime();
-  for(int i = 0; i < A.cols; i++){
-    for(int j = 0; j < A.rows; j++){
+  for(int i = 0; i < A.rows; i++){
+    for(int j = 0; j < A.cols; j++){
       B.elements[j][i] = A.elements[i][j];
     }
   }
@@ -44,21 +52,14 @@ Matrix matT(const Matrix& A){
 
 Matrix matBlockT(const Matrix& A, int block_size){
   Matrix B = Matrix(A.rows, A.cols);
-  Matrix C = Matrix(A.rows, A.cols);
   double start = omp_get_wtime();
-
-  for(int c = 0; c < A.cols; c += block_size){
-  	for(int r = 0; r < A.rows; r += block_size){
-    	//transposition of the elements of the block
-      for(int i = 0; i < block_size; i++){
-        for(int j = 0; j < block_size; j++){
-          B.elements[c+j][r+i] = A.elements[c+i][r+j];
-        }
-      }
-      //transposition of the block
+  //first loop is for selecting the chunk
+  for(int r = 0; r < A.rows; r += block_size){
+  	for(int c = 0; c < A.cols; c += block_size){
+    	//transposition of the elements of the chunk
       for(int i = 0; i < block_size; i++){
       	for(int j = 0; j < block_size; j++){
-        	C.elements[r+i][c+j] = B.elements[c+i][r+j];
+        	B.elements[c+j][r+i] = A.elements[r+i][c+j];
       	}
    		}
     }
@@ -67,7 +68,7 @@ Matrix matBlockT(const Matrix& A, int block_size){
 	double stop = omp_get_wtime();
 
   cout << "Serial matrix block transposition executed:    " << stop - start << "  \tseconds elapsed (block dimension:" << block_size << "x" << block_size << ")" <<endl; 
-  return C;
+  return B;
 }
 
 
@@ -79,9 +80,9 @@ Matrix matBlockT(const Matrix& A, int block_size){
 Matrix matTpar(const Matrix& A){
   Matrix B = Matrix(A.rows, A.cols);
   double start = omp_get_wtime();
-#pragma omp parallel for collapse(2)
-  for(int i = 0; i < A.cols; i++){
-    for(int j = 0; j < A.rows; j++){
+#pragma omp parallel for schedule(static) collapse(2)
+  for(int i = 0; i < A.rows; i++){
+    for(int j = 0; j < A.cols; j++){
       B.elements[j][i] = A.elements[i][j];
     }
   }
@@ -93,32 +94,23 @@ Matrix matTpar(const Matrix& A){
 
 Matrix matBlockTpar(const Matrix& A,int block_size){
   Matrix B = Matrix(A.rows, A.cols);
-  Matrix C = Matrix(A.rows, A.cols);
-
+ 
   double start = omp_get_wtime();
-#pragma omp parallel for schedule(dynamic)//the first loops will have less iteration the bigger is the block size 
-  for(int c = 0; c < A.cols; c += block_size){
-  	for(int r = 0; r < A.rows; r += block_size){
-      //transposition of the elements of the block
-#pragma omp parallel for schedule(static, A.cols/block_size) num_threads()//the bigger the block size, the more iteration there will be in the inner loops, 
-      for(int i = 0; i < block_size; i++){
-        for(int j = 0; j < block_size; j++){
-          B.elements[c+j][r+i] = A.elements[c+i][r+j];
-        }
-      }
-      //transposition of the block
-#pragma omp parallel for schedule(static, A.cols/block_size)//the first loop could not have a directive with a nowait clause since during the last iterations the threads would start to write the positions of C without finishing to write every possitions of B, resulting in unpredictable outputs
+#pragma omp parallel for schedule(static) collapse(4)
+  for(int r = 0; r < A.rows; r += block_size){
+  	for(int c = 0; c < A.cols; c += block_size){
+    	//transposition of the elements of the chunk
       for(int i = 0; i < block_size; i++){
       	for(int j = 0; j < block_size; j++){
-        	C.elements[r+i][c+j] = B.elements[c+i][r+j];
+        	B.elements[c+j][r+i] = A.elements[r+i][c+j];
       	}
    		}
     }
-  } 
+  }
 	double stop = omp_get_wtime();
 
   cout << "Parallel matrix block transposition executed:  " << stop - start << "  \tseconds elapsed (block dimension:" << block_size << "x" << block_size << ")"  << endl; 
-  return C;
+  return B;
 }
 //---------------------------------------------------------
 //----------------------MAIN LOOP--------------------------
@@ -126,42 +118,21 @@ Matrix matBlockTpar(const Matrix& A,int block_size){
 
 
 int main(){
-  int index_test = 0;
-  cout << "Matrix transposition testing two 4x4 matrices. Verify the correct operations by looking the result below:" << endl;
-  Matrix E = Matrix(4,4);
-  for(int i = 0; i < 4; i++){
-    for(int j = 0; j <4; j++){
-      E.elements[i][j] = index_test++;
-    }
-  }
-
-  Matrix F;
-
-  cout << E << endl;
-  F = matT(E);
-  cout << F << endl;
-  F = matBlockT(E,2);
-  cout << F << endl;
-  F = matTpar(E);
-  cout << F << endl;
-  F = matBlockTpar(E,2);
-  cout << F << endl;
-  cout << "test finished" << endl;
-
-
-
-  for(int i = 5; i <= 12; i++){
+  for(int i = 5; i <= 14; i++){
+    cout << "Testing with " << omp_get_max_threads() << " threads" << endl << endl; 
     cout << "Testing with matrix size " << pow(2,i) << "x" << pow(2,i) <<endl;
     Matrix A = Matrix(pow(2,i),pow(2,i));
     matPopulate(A);
+    Matrix B = Matrix(pow(2,i),pow(2,i));
+    Matrix C = Matrix(pow(2,i),pow(2,i));
 
-    matT(A);
-    matTpar(A);
+    C = matT(A);
+    B = matTpar(A); //isEqual(C,B);//generate matrices with integers to verify the correct execution with isEqual
     for(int j = 1; j < i; j++){
-      matBlockT(A, pow(2,j));
+      B = matBlockT(A, pow(2,j)); //isEqual(C,B);
     }
     for(int k = 1; k < i; k++){
-      matBlockTpar(A, pow(2,k));
+      B = matBlockTpar(A, pow(2,k)); //isEqual(C,B);
     }
     cout << endl;
   }

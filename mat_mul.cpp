@@ -28,6 +28,14 @@ void matPopulate(Matrix A){
   }
 }
 
+void isEqual(const Matrix& A, const Matrix& B){
+  for(int i = 0; i < A.rows; i++){
+    for(int j = 0; j < A.cols; j++){
+      if(A.elements[i][j] != B.elements[i][j]){cout<<"matrices not equal"<<endl; return;}
+    }
+  }
+}
+
 Matrix matMul(const Matrix& A, const Matrix& B){
   // check if matrix multiplication is possible, otherwise return an empty matrix with the standard constructor
   if (A.rows != B.cols) {cout<<"invalid arguments"<<endl; return Matrix();}
@@ -38,7 +46,7 @@ Matrix matMul(const Matrix& A, const Matrix& B){
   for(int i = 0; i < A.cols; i++){
     for(int k = 0; k < B.cols; k++){
       for(int j = 0; j < A.rows; j++){
-        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];//visiting data row by row increases cache hit since the cache will load entire rows in its lines, but the calculation of a specific posizion will require more loop cycles
+        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];      
       }
     }
   }
@@ -59,7 +67,7 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
     for (int k = 0; k < B.cols; k++) {
       for (int j = 0; j < A.rows; j++) {//variables declared inside of loops are implicitly private
         #pragma omp atomic update// since multiple threads can work in the same position at the same time, an atomic directive is necessary
-        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];
+        C.elements[i][j] += A.elements[i][k] * B.elements[k][j];       
       }
     }
   }
@@ -75,28 +83,10 @@ Matrix matMulPar(const Matrix& A, const Matrix& B){
 
 
 int main(){
-
-  cout << "Matrix multiplication testing two 2x2 matrices with a 2 in every position. Verify the correct operations by looking the result below:" << endl;
-  Matrix E = Matrix(4,4);
-  Matrix F = Matrix (4,4);
-  for(int i = 0; i < 4; i++){
-    for(int j = 0; j <4; j++){
-      E.elements[i][j] = 2;
-      F.elements[i][j] = 2;
-    }
-  }
-
-  cout << E << endl;
-  cout << F << endl;
-  Matrix G = matMul(E,F);
-  cout << G << endl;
-  G = matMulPar(E,F);
-  cout << G << endl;
-  cout << "test finished" << endl;
-
+  cout << "Number of threads in use: " << omp_get_max_threads() << endl << endl;
 
   Matrix A,B,C,D;
-  for(int i = 5; i <= 12; i++){    
+  for(int i = 5; i <= 14; i++){    
     cout << "Testing with matrix size " << pow(2,i) << "x" << pow(2,i) << endl;
 
     A = Matrix(pow(2,i),pow(2,i));
@@ -105,8 +95,8 @@ int main(){
     matPopulate(B);
 		
     C = matMul(A,B);
-    D = matMulPar(A,B);
-    cout<<endl;
+    D = matMulPar(A,B); //isEqual(C,D); //generate matrices of integers to verify the correct execution with isEqual
+    cout<<endl<<endl;
   }
 
   return 0;
